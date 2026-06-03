@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import {
   Keyboard,
   Platform,
@@ -56,15 +55,6 @@ function formatKey(key: string): string {
   const weekDay = WEEK_DAYS[date.getDay()];
   const month = MONTHS[date.getMonth()];
   return `${weekDay}, ${month} ${date.getDate()} ${date.getFullYear()}`;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 function parseEntries(value: string | null): JournalEntries {
@@ -182,83 +172,31 @@ function App() {
     }
   };
 
-  const exportEntriesToPdf = async () => {
+  const exportEntries = async () => {
     if (allEntries.length === 0 || isExporting) {
       return;
     }
 
     setIsExporting(true);
-    setExportStatus('Preparing PDF...');
+    setExportStatus('Preparing export...');
 
     try {
       const generatedAt = new Date();
-      const sections = allEntries
-        .map(([key, text]) => {
-          const title = escapeHtml(formatKey(key));
-          const body = escapeHtml(text).replace(/\n/g, '<br/>');
-          return `
-            <section style="margin-bottom: 22px;">
-              <h2 style="font-size: 18px; margin: 0 0 8px; color: #5A2400;">${title}</h2>
-              <p style="font-size: 14px; line-height: 1.6; margin: 0; color: #2F1A0A;">${body}</p>
-            </section>
-          `;
-        })
-        .join('');
+      const exportText = [
+        'Line-a-Day Journal Export',
+        `Exported: ${generatedAt.toLocaleString()}`,
+        '----------------------------------------',
+        ...allEntries.flatMap(([key, text]) => [formatKey(key), text, '']),
+      ].join('\n');
 
-      const html = `
-        <html>
-          <head>
-            <meta charset="utf-8" />
-            <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                padding: 28px;
-                color: #2F1A0A;
-              }
-              h1 {
-                font-size: 28px;
-                margin: 0 0 6px;
-                color: #5A2400;
-              }
-              .subtitle {
-                color: #8B4A1F;
-                margin-bottom: 18px;
-                font-size: 13px;
-              }
-              hr {
-                border: 0;
-                border-top: 1px solid #F0B689;
-                margin: 12px 0 18px;
-              }
-            </style>
-          </head>
-          <body>
-            <h1>Line-a-Day Journal</h1>
-            <div class="subtitle">Exported ${escapeHtml(generatedAt.toLocaleString())}</div>
-            <hr />
-            ${sections}
-          </body>
-        </html>
-      `;
-
-      const pdf = await RNHTMLtoPDF.convert({
-        html,
-        fileName: `line-a-day-${dateToKey(generatedAt)}`,
-      });
-
-      if (!pdf.filePath) {
-        throw new Error('No PDF file path returned');
-      }
-
-      const url = pdf.filePath.startsWith('file://') ? pdf.filePath : `file://${pdf.filePath}`;
       await Share.share({
-        url,
-        message: 'Line-a-Day journal PDF export',
+        title: 'Line-a-Day Journal Export',
+        message: exportText,
       });
 
-      setExportStatus('Export ready. Use the share sheet to save or send your PDF.');
+      setExportStatus('Export ready. Use the share sheet to save or send your entries.');
     } catch {
-      setExportStatus('Could not export PDF. Please try again.');
+      setExportStatus('Could not export entries. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -397,12 +335,12 @@ function App() {
               <View style={styles.exportRow}>
                 <Text style={styles.sectionTitle}>All Entries 🌸</Text>
                 <Pressable
-                  onPress={exportEntriesToPdf}
+                  onPress={exportEntries}
                   style={[styles.exportButton, (isExporting || allEntries.length === 0) && styles.exportButtonDisabled]}
                   disabled={isExporting || allEntries.length === 0}
                 >
                   <Text style={styles.exportButtonText}>
-                    {isExporting ? 'Exporting...' : 'Export PDF'}
+                    {isExporting ? 'Exporting...' : 'Export'}
                   </Text>
                 </Pressable>
               </View>

@@ -12,10 +12,6 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn(async () => undefined),
 }));
 
-jest.mock('react-native-html-to-pdf', () => ({
-  convert: jest.fn(async () => ({ filePath: '/tmp/journal-export.pdf' })),
-}));
-
 test('renders correctly', async () => {
   await ReactTestRenderer.act(() => {
     ReactTestRenderer.create(<App />);
